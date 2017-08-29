@@ -7,20 +7,17 @@ cloud = pcl.load_XYZRGB('tabletop.pcd')
 
 # Voxel Grid filter
 vox = cloud.make_voxel_grid_filter()
-<<<<<<< HEAD
-=======
 
 ## Choose a voxel (also known as leaf) size
 LEAF_SIZE = 0.01
 
-## Set the voxel (or leaf) size  
+## Set the voxel (or leaf) size
 vox.set_leaf_size(LEAF_SIZE, LEAF_SIZE, LEAF_SIZE)
 
 ## Call the filter function to obtain the resultant downsampled point cloud
 cloud_filtered = vox.filter()
 filename = 'voxel_downsampled.pcd'
 pcl.save(cloud_filtered, filename)
->>>>>>> 08f2b06ed32fbe1101971b46f388c2106c44e7db
 
 # Choose a voxel (also known as leaf) size
 # Note: this (1) is a poor choice of leaf size
@@ -46,7 +43,7 @@ axis_min = 0.6
 axis_max = 1.1
 passthrough.set_filter_limits(axis_min, axis_max)
 
-## Finally use the filter function to obtain the resultant point cloud. 
+## Finally use the filter function to obtain the resultant point cloud.
 cloud_filtered = passthrough.filter()
 filename = 'pass_through_filtered.pcd'
 pcl.save(cloud_filtered, filename)
@@ -56,12 +53,12 @@ pcl.save(cloud_filtered, filename)
 ## Create the segmentation object
 seg = cloud_filtered.make_segmenter()
 
-## Set the model you wish to fit 
+## Set the model you wish to fit
 seg.set_model_type(pcl.SACMODEL_PLANE)
 seg.set_method_type(pcl.SAC_RANSAC)
 
 ## Max distance for a point to be considered fitting the model
-## Experiment with different values for max_distance 
+## Experiment with different values for max_distance
 ## for segmenting the table
 max_distance = 0.01
 seg.set_distance_threshold(max_distance)
