@@ -1,12 +1,30 @@
 #!/usr/bin/env python
 
-# Import modules
-from pcl_helper import *
+import numpy as np
+import sklearn
+from sklearn.preprocessing import LabelEncoder
 
-# TODO: Define functions as required
+import pickle
+import rospy
+
+from sensor_stick.srv import GetNormals
+from sensor_stick.features import compute_color_histograms
+from sensor_stick.features import compute_normal_histograms
+from visualization_msgs.msg import Marker
+
+from sensor_stick.marker_tools import *
+from sensor_stick.msg import DetectedObjectsArray
+from sensor_stick.msg import DetectedObject
+from sensor_stick.pcl_helper import *
+
+def get_normals(cloud):
+    get_normals_prox = rospy.ServiceProxy('/feature_extractor/get_normals', GetNormals)
+    return get_normals_prox(cloud).cluster
 
 # Callback function for your Point Cloud Subscriber
 def pcl_callback(pcl_msg):
+
+# Exercise-2 TODOs:
 
     # TODO: Convert ROS msg to PCL data
     cloud = ros_to_pcl(pcl_msg)
@@ -98,6 +116,50 @@ def pcl_callback(pcl_msg):
     pcl_table_pub.publish(ros_cloud_table)
     pcl_cluster_pub.publish(ros_cluster_cloud)
 
+# Exercise-3 TODOs:
+
+    # Classify the clusters! (loop through each detected cluster one at a time)
+    detected_objects_labels = []
+    detected_objects = []
+
+    for index, pts_list in enumerate(cluster_indices):
+        # Grab the points for the cluster from the extracted outliers (cloud_objects)
+        pcl_cluster = cloud_objects.extract(pts_list)
+        # TODO: convert the cluster from pcl to ROS using helper function
+        ros_cluster = pcl_to_ros(pcl_cluster)
+
+        # Extract histogram features
+        # TODO: complete this step just as is covered in capture_features.py
+        chists = compute_color_histograms(ros_cluster, using_hsv=False)
+        normals = get_normals(ros_cluster)
+        nhists = compute_normal_histograms(normals)
+        feature = np.concatenate((chists, nhists))
+        #labeled_features.append([feature, model_name])
+
+
+        #pickle.dump(labeled_features, open('training_set.sav', 'wb'))
+        # Make the prediction, retrieve the label for the result
+        # and add it to detected_objects_labels list
+        prediction = clf.predict(scaler.transform(feature.reshape(1,-1)))
+        label = encoder.inverse_transform(prediction)[0]
+        detected_objects_labels.append(label)
+
+        # Publish a label into RViz
+        label_pos = list(white_cloud[pts_list[0]])
+        label_pos[2] += .4
+        object_markers_pub.publish(make_label(label,label_pos, index))
+
+        # Add the detected object to the list of detected objects.
+        do = DetectedObject()
+        do.label = label
+        do.cloud = ros_cluster
+        detected_objects.append(do)
+
+    rospy.loginfo('Detected {} objects: {}'.format(len(detected_objects_labels), detected_objects_labels))
+
+    # Publish the list of detected objects
+    # This is the output you'll need to complete the upcoming project!
+    detected_objects_pub.publish(detected_objects)
 
 if __name__ == '__main__':
 
@@ -111,6 +173,15 @@ if __name__ == '__main__':
     pcl_objects_pub = rospy.Publisher("/pcl_objects", PointCloud2, queue_size=1)
     pcl_table_pub = rospy.Publisher("/pcl_table", PointCloud2, queue_size=1)
     pcl_cluster_pub = rospy.Publisher("/pcl_cluster", PointCloud2, queue_size=1)
+    object_markers_pub = rospy.Publisher("/object_markers", Marker, queue_size=1)
+    detected_objects_pub = rospy.Publisher("/detected_objects", DetectedObjectsArray, queue_size=1)
+
+    # TODO: Load Model From disk
+    model = pickle.load(open('model.sav', 'rb'))
+    clf = model['classifier']
+    encoder = LabelEncoder()
+    encoder.classes_ = model['classes']
+    scaler = model['scaler']
 
     # Initialize color_list
     get_color_list.color_list = []
