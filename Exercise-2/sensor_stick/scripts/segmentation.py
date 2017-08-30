@@ -48,7 +48,7 @@ def pcl_callback(pcl_msg):
     ## Max distance for a point to be considered fitting the model
     ## Experiment with different values for max_distance
     ## for segmenting the table
-    max_distance = 0.01
+    max_distance = 0.038
     seg.set_distance_threshold(max_distance)
 
     ## Call the segment function to obtain set of inlier indices and model coefficients
@@ -59,16 +59,44 @@ def pcl_callback(pcl_msg):
     cloud_objects = cloud_filtered.extract(inliers, negative=True) # Objects - outliers
 
     # TODO: Euclidean Clustering
+    white_cloud = XYZRGB_to_XYZ(extracted_outliers)
+    tree = white_cloud.make_kdtree()
 
     # TODO: Create Cluster-Mask Point Cloud to visualize each cluster separately
+    ec = white_cloud.make_EuclideanClusterExtraction()
+    ## Set tolerances for distance threshold
+    ## as well as minimum and maximum cluster size (in points)
+    ec.set_ClusterTolerance(0.05)
+    ec.set_MinClusterSize(20)
+    ec.set_MaxClusterSize(2000)
+    ## Search the k-d tree for clusters
+    ec.set_SearchMethod(tree)
+    ## Extract indices for each of the discovered clusters
+    cluster_indices = ec.Extract()
+    ## Assign a color corresponding to each segmented object in scene
+    cluster_color = get_color_list(len(cluster_indices))
+
+    color_cluster_point_list = []
+
+    for j, indices in enumerate(cluster_indices):
+        for i, indice in enumerate(indices):
+            color_cluster_point_list.append([white_cloud[indice][0],
+                                            white_cloud[indice][1],
+                                            white_cloud[indice][2],
+                                             rgb_to_float(cluster_color[j])])
+    #Create new cloud containing all clusters, each with unique color
+    cluster_cloud = pcl.PointCloud_PointXYZRGB()
+    cluster_cloud.from_list(color_cluster_point_list)
 
     # TODO: Convert PCL data to ROS messages
     ros_cloud_objects = pcl_to_ros(cloud_objects)
     ros_cloud_table = pcl_to_ros(cloud_table)
+    ros_cluster_cloud = pcl_to_ros(cluster_cloud)
 
     # TODO: Publish ROS messages
     pcl_objects_pub.publish(ros_cloud_objects)
     pcl_table_pub.publish(ros_cloud_table)
+    pcl_cluster_pub.publish(ros_cluster_cloud)
 
 
 if __name__ == '__main__':
