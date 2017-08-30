@@ -59,7 +59,7 @@ def pcl_callback(pcl_msg):
     cloud_objects = cloud_filtered.extract(inliers, negative=True) # Objects - outliers
 
     # TODO: Euclidean Clustering
-    white_cloud = XYZRGB_to_XYZ(extracted_outliers)
+    white_cloud = XYZRGB_to_XYZ(cloud_objects)
     tree = white_cloud.make_kdtree()
 
     # TODO: Create Cluster-Mask Point Cloud to visualize each cluster separately
